@@ -6,6 +6,20 @@ from nba_api.stats.static import players
 from nba_api.stats.endpoints import boxscoretraditionalv2
 from datetime import date, datetime
 from nba_api.stats.endpoints import scheduleleaguev2
+from nba_api.stats.library.http import NBAStatsHTTP
+
+
+# Aumentar timeout
+NBAStatsHTTP.timeout = 60
+
+# Adicionar headers que a NBA espera
+NBAStatsHTTP.headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.nba.com/',
+    'Origin': 'https://www.nba.com',
+}
 
 app = FastAPI(title="Minha API NBA")
 
