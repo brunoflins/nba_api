@@ -5,6 +5,8 @@ services:
     build: .
     container_name: nba-api-container
     restart: unless-stopped
+    ports:
+      - "9090:9090"
 
   nginx:
     image: nginx:latest
