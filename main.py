@@ -3,11 +3,11 @@ from nba_api.stats.endpoints import playercareerstats
 from nba_api.live.nba.endpoints import scoreboard, boxscore
 from nba_api.stats.endpoints import scoreboardv2
 from nba_api.stats.static import players
-from nba_api.stats.endpoints import boxscoretraditionalv2
+from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers
 from datetime import date, datetime
 from nba_api.stats.endpoints import scheduleleaguev2
 from nba_api.stats.library.http import NBAStatsHTTP
-from nba_api.stats.static import players
+from nba_api.stats.static import players, teams
 import time
 
 
@@ -34,6 +34,16 @@ def get_players():
     active_players = players.get_active_players()
     return active_players
 
+@app.get("/franchise_players/{team_id}")
+def get_team_players(team_id: int):
+    team_players = franchiseplayers.FranchisePlayers(team_id=team_id)
+    return team_players.get_dict()
+
+@app.get("/teams")
+def get_teams():
+    all_teams = teams.get_teams()
+    return all_teams
+
 
 @app.get("/player/{player_id}")
 def get_player_stats(player_id: str):
@@ -44,11 +54,7 @@ def get_player_stats(player_id: str):
 def get_scoreboard():
     sb = scoreboard.ScoreBoard()
     return sb.get_dict()
-
-@app.get("/players")
-def get_players():
-    pl = players.get_players();
-    return pl; 
+ 
 
 @app.get("/boxscore/{game_id}")
 def get_boxscore(game_id: str):
