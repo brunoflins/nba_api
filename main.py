@@ -27,7 +27,7 @@ app = FastAPI(title="Minha API NBA")
 
 @app.get("/")
 def root():
-    return {"message": "API da NBA funcionando 🚀"}
+    return {"message": "API da NBA funcionando 🚀 2.0"}
 
 @app.get("/players")
 def get_players():
