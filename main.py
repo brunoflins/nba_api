@@ -3,12 +3,12 @@ from nba_api.stats.endpoints import playercareerstats
 from nba_api.live.nba.endpoints import scoreboard, boxscore
 from nba_api.stats.endpoints import scoreboardv2
 from nba_api.stats.static import players
-from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers
+from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers, commonallplayers
 from datetime import date, datetime
 from nba_api.stats.endpoints import scheduleleaguev2
 from nba_api.stats.library.http import NBAStatsHTTP
 from nba_api.stats.static import players, teams
-import time
+import time, json
 
 
 # Aumentar timeout
@@ -29,10 +29,26 @@ app = FastAPI(title="Minha API NBA")
 def root():
     return {"message": "API da NBA funcionando 🚀 2.0"}
 
+@app.get("/common_all_players")
+def get_all_players():
+    all_players = commonallplayers.CommonAllPlayers(is_only_current_season=1).get_json()
+    
+    # Converte o texto JSON em dicionário Python
+    data = json.loads(all_players)
+    
+    # Agora você pode acessar as partes
+    players = data['resultSets'][0]['rowSet']
+    headers = data['resultSets'][0]['headers']
+
+    # Se quiser transformar em lista de dicionários (mais legível):
+    players_list = [dict(zip(headers, row)) for row in players]
+
+    return players_list
+
 @app.get("/players")
 def get_players():
     active_players = players.get_active_players()
-    return active_players
+    return active_players;
 
 @app.get("/franchise_players/{team_id}")
 def get_team_players(team_id: int):
