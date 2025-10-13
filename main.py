@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from nba_api.stats.endpoints import playercareerstats
 from nba_api.live.nba.endpoints import scoreboard, boxscore
 from nba_api.stats.endpoints import scoreboardv2
@@ -24,6 +25,21 @@ NBAStatsHTTP.headers = {
 }
 
 app = FastAPI(title="Minha API NBA")
+
+# 🔹 Lista de origens permitidas
+origins = [
+    "http://localhost:3000",   # Nuxt local
+    "https://seusite.com",     # Produção
+]
+
+# 🔹 Middleware de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,           # ou ["*"] para liberar geral
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
