@@ -29,7 +29,7 @@ app = FastAPI(title="Minha API NBA")
 # 🔹 Lista de origens permitidas
 origins = [
     "http://localhost:3000",   # Nuxt local
-    "https://seusite.com",     # Produção
+    "https://bpfantasy.app",     # Produção
 ]
 
 # 🔹 Middleware de CORS
