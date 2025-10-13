@@ -26,13 +26,7 @@ NBAStatsHTTP.headers = {
 
 app = FastAPI(title="Minha API NBA")
 
-# 🔹 Lista de origens permitidas
-origins = [
-    "http://localhost:3000",   # Nuxt local
-    "https://bpfantasy.app",     # Produção
-]
 
-# 🔹 Middleware de CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],           # ou ["*"] para liberar geral
