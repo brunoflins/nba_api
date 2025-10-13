@@ -3,7 +3,7 @@ from nba_api.stats.endpoints import playercareerstats
 from nba_api.live.nba.endpoints import scoreboard, boxscore
 from nba_api.stats.endpoints import scoreboardv2
 from nba_api.stats.static import players
-from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers, commonallplayers
+from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers, commonallplayers, commonplayerinfo
 from datetime import date, datetime
 from nba_api.stats.endpoints import scheduleleaguev2
 from nba_api.stats.library.http import NBAStatsHTTP
@@ -50,6 +50,7 @@ def get_players():
     active_players = players.get_active_players()
     return active_players;
 
+
 @app.get("/franchise_players/{team_id}")
 def get_team_players(team_id: int):
     team_players = franchiseplayers.FranchisePlayers(team_id=team_id)
@@ -61,10 +62,61 @@ def get_teams():
     return all_teams
 
 
-@app.get("/player/{player_id}")
+@app.get("/players/{player_id}")
 def get_player_stats(player_id: str):
-    career = playercareerstats.PlayerCareerStats(player_id=player_id)
-    return career.get_dict()
+    player_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_dict()
+
+    # Extrair os resultSets
+    result_sets = {item["name"]: item for item in player_info["resultSets"]}
+
+    # Extrair dados do jogador (CommonPlayerInfo)
+    player_data = dict(zip(
+        result_sets["CommonPlayerInfo"]["headers"],
+        result_sets["CommonPlayerInfo"]["rowSet"][0]
+    ))
+
+    # Extrair estatísticas (PlayerHeadlineStats)
+    stats_data = dict(zip(
+        result_sets["PlayerHeadlineStats"]["headers"],
+        result_sets["PlayerHeadlineStats"]["rowSet"][0]
+    )) if result_sets["PlayerHeadlineStats"]["rowSet"] else None
+
+    # Extrair temporadas disponíveis
+    available_seasons = [
+        season[0] for season in result_sets["AvailableSeasons"]["rowSet"]
+    ]
+
+    # Montar o JSON final
+    return {
+        "id": player_data["PERSON_ID"],
+        "name": player_data["DISPLAY_FIRST_LAST"],
+        "team": {
+            "id": player_data["TEAM_ID"],
+            "name": player_data["TEAM_NAME"],
+            "abbreviation": player_data["TEAM_ABBREVIATION"],
+            "city": player_data["TEAM_CITY"],
+        },
+        "bio": {
+            "first_name": player_data["FIRST_NAME"],
+            "last_name": player_data["LAST_NAME"],
+            "birthdate": player_data["BIRTHDATE"],
+            "school": player_data["SCHOOL"],
+            "country": player_data["COUNTRY"],
+            "height": player_data["HEIGHT"],
+            "weight": player_data["WEIGHT"],
+            "position": player_data["POSITION"],
+            "jersey": player_data["JERSEY"],
+            "experience": player_data["SEASON_EXP"],
+        },
+        "stats": {
+            "season": stats_data["TimeFrame"] if stats_data else None,
+            "points": stats_data["PTS"] if stats_data else None,
+            "assists": stats_data["AST"] if stats_data else None,
+            "rebounds": stats_data["REB"] if stats_data else None,
+            "pie": stats_data["PIE"] if stats_data else None,
+        },
+        "available_seasons": available_seasons,
+    }
 
 @app.get("/scoreboard")
 def get_scoreboard():
