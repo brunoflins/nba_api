@@ -64,8 +64,8 @@ def get_teams():
 
 @app.get("/players/{player_id}")
 def get_player_stats(player_id: str):
-    player_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_dict()
-
+    player_info  = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_dict()
+    
     # Extrair os resultSets
     result_sets = {item["name"]: item for item in player_info["resultSets"]}
 
