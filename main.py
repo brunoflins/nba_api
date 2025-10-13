@@ -35,7 +35,7 @@ origins = [
 # 🔹 Middleware de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,           # ou ["*"] para liberar geral
+    allow_origins=["*"],           # ou ["*"] para liberar geral
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
