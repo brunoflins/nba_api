@@ -151,14 +151,14 @@ def convert_date_format(d: str) -> str:
 @app.get("/games/{game_date}")
 def get_games(game_date: str | None = None):
     """
-    Retorna jogos de uma data:
-    - Se não passar data -> live.ScoreBoard (jogos de hoje)
-    - Se passar data -> stats.ScoreboardV2 (jogos dessa data)
-    Para cada jogo: status e boxscore completo.
+    Retorna:
+    - gameId
+    - status
+    - todos os jogadores (home + away) em um único array
+      com o campo teamTricode
     """
     lista = []
     
-    # Headers para evitar bloqueio da API
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json',
@@ -167,7 +167,7 @@ def get_games(game_date: str | None = None):
 
     try:
         if game_date is None:
-            # Jogos de hoje - live
+            # Jogos de hoje - live API
             sb = scoreboard.ScoreBoard(headers=headers)
             games = sb.games.get_dict()
 
@@ -175,56 +175,79 @@ def get_games(game_date: str | None = None):
                 game_id = g["gameId"]
                 status = g["gameStatusText"]
 
-                # Tenta pegar boxscore, mas trata erro se não existir
                 try:
                     bs = boxscore.BoxScore(game_id=game_id, headers=headers).game.get_dict()
-                    boxscore_data = bs
+
+                    home_team = bs["homeTeam"]
+                    away_team = bs["awayTeam"]
+
+                    home_players = [
+                        {**p, "teamTricode": home_team["teamTricode"]}
+                        for p in home_team.get("players", [])
+                    ]
+                    away_players = [
+                        {**p, "teamTricode": away_team["teamTricode"]}
+                        for p in away_team.get("players", [])
+                    ]
+
+                    players = home_players + away_players
                 except Exception as e:
                     print(f"Erro ao buscar boxscore do jogo {game_id}: {e}")
-                    boxscore_data = {"error": "Boxscore não disponível"}
-                
+                    players = []
+
                 lista.append({
-                    "game": g,
-                    "boxscore": boxscore_data,
+                    "gameId": game_id,
+                    "status": status,
+                    "players": players,
                 })
-                
-                # Pequeno delay para não sobrecarregar a API
+
                 time.sleep(0.5)
 
         else:
-            # Jogos de uma data específica - stats
+            # Jogos de uma data específica - stats API
             formatted_date = convert_date_format(game_date)
             sb = scoreboardv2.ScoreboardV2(game_date=formatted_date, headers=headers)
             df = sb.get_data_frames()[0]
 
             for _, row in df.iterrows():
                 game_id = row["GAME_ID"]
-                status = row["LIVE_PERIOD"]
+                status = row.get("GAME_STATUS_TEXT", row.get("LIVE_PERIOD", ""))
 
-                # Tenta pegar boxscore, mas trata erro se não existir
                 try:
                     bs = boxscoretraditionalv2.BoxScoreTraditionalV2(
                         game_id=game_id, 
                         headers=headers
-                    ).get_dict()["resultSets"]
-                    boxscore_data = bs
+                    ).get_dict()
+
+                    player_data = next(
+                        (r for r in bs["resultSets"] if r["name"] == "PlayerStats"),
+                        None
+                    )
+                    players = []
+                    if player_data:
+                        headers_list = player_data["headers"]
+                        for row_set in player_data["rowSet"]:
+                            player = dict(zip(headers_list, row_set))
+                            # adiciona o teamTricode (TIME_ABBREVIATION na resposta da API)
+                            player["teamTricode"] = player.get("TEAM_ABBREVIATION")
+                            players.append(player)
                 except Exception as e:
                     print(f"Erro ao buscar boxscore do jogo {game_id}: {e}")
-                    boxscore_data = [{"error": "Boxscore não disponível"}]
+                    players = []
 
                 lista.append({
-                    "game": row.to_dict(),
-                    "boxscore": boxscore_data,
+                    "gameId": game_id,
+                    "status": status,
+                    "players": players,
                 })
-                
-                # Pequeno delay para não sobrecarregar a API
+
                 time.sleep(0.5)
 
-        return {"date": game_date or date.today().strftime("%Y-%m-%d"), "games": lista}
-    
+        return lista
+
     except Exception as e:
-        print(f"ERRO GERAL: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao buscar jogos: {str(e)}")
+
 
 @app.get("/schedule/")
 def get_schedule():
