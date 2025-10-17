@@ -226,9 +226,8 @@ def get_games(game_date: str | None = None):
                     players = []
                     if player_data:
                         headers_list = player_data["headers"]
-                        for row_set in player_data["rowSet"]:
+                        for i, row_set in enumerate(player_data["rowSet"], start=1):
                             player = dict(zip(headers_list, row_set))
-                            # adiciona o teamTricode (TIME_ABBREVIATION na resposta da API)
                             player["teamTricode"] = player.get("TEAM_ABBREVIATION")
                             players.append(normalize_player(player))
                 except Exception as e:
@@ -262,21 +261,81 @@ def get_schedule():
 
     return {"games": games}
 
-def normalize_player(player: dict) -> dict:
-    """
-    Converte o formato da API stats (caixa alta) para o formato usado pela live API.
-    """
+def normalize_player(player: dict, order: int = 1) -> dict:
+    """Converte dados do jogador para o formato padronizado."""
+
+    # Divide o nome
+    full_name = player.get("PLAYER_NAME", "")
+    parts = full_name.split(" ")
+    first_name = parts[0] if parts else ""
+    family_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+    nameI = f"{first_name[0]}. {family_name}" if first_name and family_name else full_name
+
+    # Converte minutos "20:30" → "PT20M30S"
+    raw_minutes = player.get("MIN", "0:00")
+    try:
+        min_split = raw_minutes.split(":")
+        minutes_iso = f"PT{int(min_split[0])}M{int(min_split[1])}S"
+    except:
+        minutes_iso = "PT0M"
+
+    # Números com segurança
+    FGA = safe_number(player.get("FGA"))
+    FGM = safe_number(player.get("FGM"))
+    FG3A = safe_number(player.get("FG3A"))
+    FG3M = safe_number(player.get("FG3M"))
+
+    two_pointers_attempted = FGA - FG3A
+    two_pointers_made = FGM - FG3M
+    two_pointers_pct = (two_pointers_made / two_pointers_attempted) if two_pointers_attempted > 0 else 0.0
+
+    stats = {
+        "assists": safe_number(player.get("AST")),
+        "blocks": safe_number(player.get("BLK")),
+        "fieldGoalsAttempted": FGA,
+        "fieldGoalsMade": FGM,
+        "fieldGoalsPercentage": safe_number(player.get("FG_PCT")),
+        "freeThrowsAttempted": safe_number(player.get("FTA")),
+        "freeThrowsMade": safe_number(player.get("FTM")),
+        "freeThrowsPercentage": safe_number(player.get("FT_PCT")),
+        "foulsPersonal": safe_number(player.get("PF")),
+        "points": safe_number(player.get("PTS")),
+        "reboundsDefensive": safe_number(player.get("DREB")),
+        "reboundsOffensive": safe_number(player.get("OREB")),
+        "reboundsTotal": safe_number(player.get("REB")),
+        "steals": safe_number(player.get("STL")),
+        "threePointersAttempted": FG3A,
+        "threePointersMade": FG3M,
+        "threePointersPercentage": safe_number(player.get("FG3_PCT")),
+        "turnovers": safe_number(player.get("TO")),
+        "twoPointersAttempted": two_pointers_attempted,
+        "twoPointersMade": two_pointers_made,
+        "twoPointersPercentage": two_pointers_pct,
+        "minutes": minutes_iso,
+        "minutesCalculated": minutes_iso,
+        "plusMinusPoints": safe_number(player.get("PLUS_MINUS")),
+    }
+
     return {
+        "status": "ACTIVE",
+        "order": order,
         "personId": player.get("PLAYER_ID"),
-        "firstName": player.get("PLAYER_NAME", "").split(" ")[0],
-        "familyName": " ".join(player.get("PLAYER_NAME", "").split(" ")[1:]),
-        "jerseyNum": player.get("START_POSITION", ""),
+        "jerseyNum": str(player.get("START_POSITION", "")),
         "position": player.get("START_POSITION", ""),
-        "points": player.get("PTS", 0),
-        "assists": player.get("AST", 0),
-        "rebounds": player.get("REB", 0),
-        "steals": player.get("STL", 0),
-        "blocks": player.get("BLK", 0),
-        "turnovers": player.get("TO", 0),
+        "starter": "1" if player.get("START_POSITION") else "0",
+        "oncourt": "0",
+        "played": "1",
+        "statistics": stats,
+        "name": full_name,
+        "nameI": nameI,
+        "firstName": first_name,
+        "familyName": family_name,
         "teamTricode": player.get("TEAM_ABBREVIATION"),
     }
+
+def safe_number(value):
+    """Garante que o valor seja numérico (ou 0 se None / inválido)."""
+    try:
+        return float(value) if value not in [None, ""] else 0.0
+    except Exception:
+        return 0.0
