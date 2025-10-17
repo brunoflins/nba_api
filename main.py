@@ -230,7 +230,7 @@ def get_games(game_date: str | None = None):
                             player = dict(zip(headers_list, row_set))
                             # adiciona o teamTricode (TIME_ABBREVIATION na resposta da API)
                             player["teamTricode"] = player.get("TEAM_ABBREVIATION")
-                            players.append(player)
+                            players.append(normalize_player(player))
                 except Exception as e:
                     print(f"Erro ao buscar boxscore do jogo {game_id}: {e}")
                     players = []
@@ -261,3 +261,22 @@ def get_schedule():
     games = schedule.get_dict()["leagueSchedule"]
 
     return {"games": games}
+
+def normalize_player(player: dict) -> dict:
+    """
+    Converte o formato da API stats (caixa alta) para o formato usado pela live API.
+    """
+    return {
+        "personId": player.get("PLAYER_ID"),
+        "firstName": player.get("PLAYER_NAME", "").split(" ")[0],
+        "familyName": " ".join(player.get("PLAYER_NAME", "").split(" ")[1:]),
+        "jerseyNum": player.get("START_POSITION", ""),
+        "position": player.get("START_POSITION", ""),
+        "points": player.get("PTS", 0),
+        "assists": player.get("AST", 0),
+        "rebounds": player.get("REB", 0),
+        "steals": player.get("STL", 0),
+        "blocks": player.get("BLK", 0),
+        "turnovers": player.get("TO", 0),
+        "teamTricode": player.get("TEAM_ABBREVIATION"),
+    }
