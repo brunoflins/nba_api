@@ -119,7 +119,7 @@ def get_player_stats(player_id: str):
                         "SEASON_ID": season["SEASON_ID"],
                         "TEAM_ABBREVIATION": season["TEAM_ABBREVIATION"],
                         "PLAYER_AGE": season["PLAYER_AGE"],
-                        "MIN": round((season["MIN"] * 60) + (season['GS'])  / gp, 1),
+                        "MIN": round(((season["MIN"] * 60) + season['GS']) / gp, 1),
                         "PTS": round(season["PTS"] / gp, 1),
                         "REB": round(season["REB"] / gp, 1),
                         "AST": round(season["AST"] / gp, 1),
