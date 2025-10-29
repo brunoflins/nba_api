@@ -6,7 +6,7 @@ from nba_api.stats.endpoints import scoreboardv2
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers, commonallplayers, commonplayerinfo
 from datetime import date, datetime
-from nba_api.stats.endpoints import scheduleleaguev2, playercareerstats
+from nba_api.stats.endpoints import scheduleleaguev2, playercareerstats, cumestatsplayer
 from nba_api.stats.library.http import NBAStatsHTTP
 from nba_api.stats.static import players, teams
 import time, json
@@ -91,9 +91,7 @@ def get_player_stats(player_id: str):
         result_sets["PlayerHeadlineStats"]["rowSet"][0]
     )) if result_sets["PlayerHeadlineStats"]["rowSet"] else None
 
-    # Extrair temporadas disponíveis
-    career = playercareerstats.PlayerCareerStats(player_id=player_id)
-    raw_data = career.get_dict()
+   
     
     # Função auxiliar para converter resultSets em formato estruturado
     def parse_result_set(result_set):
@@ -101,12 +99,38 @@ def get_player_stats(player_id: str):
         rows = result_set['rowSet']
         return [dict(zip(headers, row)) for row in rows]
     
+
+
+    # Extrair temporadas disponíveis
     # Procura apenas o SeasonTotalsRegularSeason
+    career = playercareerstats.PlayerCareerStats(player_id=player_id)
+    raw_data = career.get_dict()
+    
     for result_set in raw_data.get("resultSets", []):
-        if result_set['name'] == 'SeasonTotalsRegularSeason':
+        if result_set["name"] == "SeasonTotalsRegularSeason":
             seasons = parse_result_set(result_set)
-            # Ordena por SEASON_ID decrescente
-            seasons.sort(key=lambda x: x['SEASON_ID'], reverse=True)
+            seasons.sort(key=lambda x: x["SEASON_ID"], reverse=True)
+
+            season_averages = []
+            for season in seasons:
+                gp = season.get("GP", 0)
+                if gp > 0:
+                    averages = {
+                        "SEASON_ID": season["SEASON_ID"],
+                        "TEAM_ABBREVIATION": season["TEAM_ABBREVIATION"],
+                        "PLAYER_AGE": season["PLAYER_AGE"],
+                        "MIN": round(season["MIN"] / gp, 1),
+                        "PTS": round(season["PTS"] / gp, 1),
+                        "REB": round(season["REB"] / gp, 1),
+                        "AST": round(season["AST"] / gp, 1),
+                        "STL": round(season["STL"] / gp, 1),
+                        "BLK": round(season["BLK"] / gp, 1),
+                        "FG3M": round(season["FG3M"] / gp, 1),
+                        "TOV": round(season["TOV"] / gp, 1),                      
+                        "GP": gp,
+                    }
+                    season_averages.append(averages)
+           
            
 
     # Montar o JSON final
@@ -138,7 +162,7 @@ def get_player_stats(player_id: str):
             "rebounds": stats_data["REB"] if stats_data else None,
             "pie": stats_data["PIE"] if stats_data else None,
         },
-        "seasons": seasons,
+        "seasons": season_averages,
     }
 
 @app.get("/scoreboard")
@@ -361,25 +385,5 @@ def teste():
 
 @app.get("/player_career/{player_id}")
 def get_player_career(player_id: str):
-    career = playercareerstats.PlayerCareerStats(player_id=player_id)
-    raw_data = career.get_dict()
-    
-    # Função auxiliar para converter resultSets em formato estruturado
-    def parse_result_set(result_set):
-        headers = result_set['headers']
-        rows = result_set['rowSet']
-        return [dict(zip(headers, row)) for row in rows]
-    
-    # Procura apenas o SeasonTotalsRegularSeason
-    for result_set in raw_data.get("resultSets", []):
-        if result_set['name'] == 'SeasonTotalsRegularSeason':
-            seasons = parse_result_set(result_set)
-            # Ordena por SEASON_ID decrescente
-            seasons.sort(key=lambda x: x['SEASON_ID'], reverse=True)
-            return {
-                "player_id": player_id,
-                "seasons": seasons
-            }
-    
-    # Retorna vazio se não encontrar
-    return {"player_id": player_id, "seasons": []}
+  cumStatsPlayerObj = cumestatsplayer.CumeStatsPlayer(player_id=player_id)  
+  return cumStatsPlayerObj.get_dict()
