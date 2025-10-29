@@ -6,7 +6,7 @@ from nba_api.stats.endpoints import scoreboardv2
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers, commonallplayers, commonplayerinfo
 from datetime import date, datetime
-from nba_api.stats.endpoints import scheduleleaguev2
+from nba_api.stats.endpoints import scheduleleaguev2, playercareerstats
 from nba_api.stats.library.http import NBAStatsHTTP
 from nba_api.stats.static import players, teams
 import time, json
@@ -92,9 +92,22 @@ def get_player_stats(player_id: str):
     )) if result_sets["PlayerHeadlineStats"]["rowSet"] else None
 
     # Extrair temporadas disponíveis
-    available_seasons = [
-        season[0] for season in result_sets["AvailableSeasons"]["rowSet"]
-    ]
+    career = playercareerstats.PlayerCareerStats(player_id=player_id)
+    raw_data = career.get_dict()
+    
+    # Função auxiliar para converter resultSets em formato estruturado
+    def parse_result_set(result_set):
+        headers = result_set['headers']
+        rows = result_set['rowSet']
+        return [dict(zip(headers, row)) for row in rows]
+    
+    # Procura apenas o SeasonTotalsRegularSeason
+    for result_set in raw_data.get("resultSets", []):
+        if result_set['name'] == 'SeasonTotalsRegularSeason':
+            seasons = parse_result_set(result_set)
+            # Ordena por SEASON_ID decrescente
+            seasons.sort(key=lambda x: x['SEASON_ID'], reverse=True)
+           
 
     # Montar o JSON final
     return {
@@ -125,7 +138,7 @@ def get_player_stats(player_id: str):
             "rebounds": stats_data["REB"] if stats_data else None,
             "pie": stats_data["PIE"] if stats_data else None,
         },
-        "available_seasons": available_seasons,
+        "seasons": seasons,
     }
 
 @app.get("/scoreboard")
@@ -339,3 +352,34 @@ def safe_number(value):
         return float(value) if value not in [None, ""] else 0.0
     except Exception:
         return 0.0
+
+@app.get("/teste")
+def teste():
+    sb = scoreboard.ScoreBoard()
+    games = sb.games.get_dict()
+    return {"message": "Rota de teste funcionando!", "games": games}
+
+@app.get("/player_career/{player_id}")
+def get_player_career(player_id: str):
+    career = playercareerstats.PlayerCareerStats(player_id=player_id)
+    raw_data = career.get_dict()
+    
+    # Função auxiliar para converter resultSets em formato estruturado
+    def parse_result_set(result_set):
+        headers = result_set['headers']
+        rows = result_set['rowSet']
+        return [dict(zip(headers, row)) for row in rows]
+    
+    # Procura apenas o SeasonTotalsRegularSeason
+    for result_set in raw_data.get("resultSets", []):
+        if result_set['name'] == 'SeasonTotalsRegularSeason':
+            seasons = parse_result_set(result_set)
+            # Ordena por SEASON_ID decrescente
+            seasons.sort(key=lambda x: x['SEASON_ID'], reverse=True)
+            return {
+                "player_id": player_id,
+                "seasons": seasons
+            }
+    
+    # Retorna vazio se não encontrar
+    return {"player_id": player_id, "seasons": []}
