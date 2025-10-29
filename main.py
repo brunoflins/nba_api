@@ -6,7 +6,7 @@ from nba_api.stats.endpoints import scoreboardv2
 from nba_api.stats.static import players
 from nba_api.stats.endpoints import boxscoretraditionalv2, franchiseplayers, commonallplayers, commonplayerinfo
 from datetime import date, datetime
-from nba_api.stats.endpoints import scheduleleaguev2, playercareerstats, cumestatsplayer
+from nba_api.stats.endpoints import scheduleleaguev2, playercareerstats, cumestatsplayer, playerfantasyprofilebargraph
 from nba_api.stats.library.http import NBAStatsHTTP
 from nba_api.stats.static import players, teams
 import time, json
@@ -131,7 +131,16 @@ def get_player_stats(player_id: str):
                     }
                     season_averages.append(averages)
            
-           
+    playerfantasy = playerfantasyprofilebargraph.PlayerFantasyProfileBarGraph(player_id=player_id)
+    fantasy_data = playerfantasy.get_dict()
+
+    last_five = []
+    for result_set in fantasy_data.get("resultSets", []):
+        if result_set["name"] == "LastFiveGamesAvg":
+            headers = result_set["headers"]
+            rows = result_set["rowSet"]
+            last_five = [dict(zip(headers, row)) for row in rows]
+            break      
 
     # Montar o JSON final
     return {
@@ -163,6 +172,7 @@ def get_player_stats(player_id: str):
             "pie": stats_data["PIE"] if stats_data else None,
         },
         "seasons": season_averages,
+        "last_five": last_five,
     }
 
 @app.get("/scoreboard")
